@@ -9,7 +9,7 @@ using Microsoft.Extensions.Configuration;
 
 namespace WebRequestServiceBusForwarder;
 
-public class Function1(IConfiguration configuration, ServiceBusSender sender)
+public class ForwarderFunction(IConfiguration configuration, ServiceBusSender sender)
 {
     private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions
     {
@@ -18,9 +18,9 @@ public class Function1(IConfiguration configuration, ServiceBusSender sender)
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull | JsonIgnoreCondition.WhenWritingDefault,
     };
 
-    [Function("Function1")]
+    [Function("ForwarderFunction")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req
+        [HttpTrigger(AuthorizationLevel.Anonymous, new[] { "get", "post" }, Route = "{*ignored}")] HttpRequestData req
         )
     {
         var requestUri = req.Url;

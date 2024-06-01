@@ -1,17 +1,25 @@
 using System.Net;
 using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Configuration;
 
 namespace WebRequestServiceBusForwarder;
 
-public class Function1(ILoggerFactory loggerFactory)
+public class Function1(IConfiguration configuration, ServiceBusSender sender)
 {
-    private readonly ILogger _logger = loggerFactory.CreateLogger<Function1>();
+    private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        WriteIndented = false,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull | JsonIgnoreCondition.WhenWritingDefault,
+    };
 
     [Function("Function1")]
-    public async Task<OutputType> Run(
+    public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post")] HttpRequestData req
         )
     {
@@ -32,33 +40,32 @@ public class Function1(ILoggerFactory loggerFactory)
         var outputMessage = new OutputRequest()
         {
             RequestUri = requestUri,
-            Cookies = cookies,
-            Headers = headers,
-            Identities = identities,
             Body = body
         };
 
-        _logger.LogInformation("C# HTTP trigger function processed a request.");
+        if (cookies != null)
+        {
+            outputMessage.Cookies = cookies;
+        }
+
+        if (headers != null)
+        {
+            outputMessage.Headers = headers;
+        }
+
+        if (identities != null)
+        {
+            outputMessage.Identities = identities;
+        }
+
+        var msg = new ServiceBusMessage(JsonSerializer.Serialize(outputMessage, jsonSerializerOptions));
+        msg.ApplicationProperties.Add("RequestUri", requestUri.ToString());
+
+        await sender.SendMessageAsync(msg);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        response.Headers.Add("Content-Type", "text/plain; charset=utf-8");
-
-        response.WriteString("Welcome to Azure Functions!");
-
-        return new OutputType()
-        {
-            HttpResponse = response,
-            OutputEvent = outputMessage
-        };
+        return response;
     }
-}
-
-public class OutputType
-{
-    [ServiceBusOutput("RequestQueue", Connection = "ServiceBusConnection")]
-    public OutputRequest OutputEvent { get; set; }
-
-    public HttpResponseData HttpResponse { get; set; }
 }
 
 public class OutputRequest

@@ -1,0 +1,38 @@
+# Starter pipeline
+# Start with a minimal pipeline that you can customize to build and deploy your code.
+# Add steps that build, run tests, deploy, and more:
+# https://aka.ms/yaml
+
+trigger:
+- master
+
+pool:
+  vmImage: ubuntu-latest
+
+steps:
+  - task: DotNetCoreCLI@2
+    displayName: 'Dotnet Publish Functions'
+    inputs:
+      command: 'publish'
+      arguments: '--configuration $(BuildConfiguration) --output $(Agent.TempDirectory)/AzureFunctions -r linux-x64 --no-self-contained -p:FunctionsPublishReadyToRun=true -bl:$(Build.ArtifactStagingDirectory)/binlog/functions.binlog'
+      projects: 'WebRequestServiceBusForwarder.csproj'
+      publishWebProjects: false # Otherwise it looks for and publishes all web projects too
+      modifyOutputPath: false
+      zipAfterPublish: false
+
+  - task: ArchiveFiles@2
+    displayName: 'Archive AzureFunctions files'
+    inputs:
+      rootFolderOrFile: '$(Agent.TempDirectory)/AzureFunctions'
+      includeRootFolder: false
+      archiveFile: '$(Build.ArtifactStagingDirectory)/Webjob/AzureFunctions.zip'
+
+  - task: AzureFunctionApp@2
+    displayName: 'Deploy AzureFunctions'
+    inputs:
+      connectedServiceNameARM: 'Microsoft Azure'
+      appType: functionAppLinux # default is functionApp
+      appName: 'ls-webhookforwarder'
+      resourceGroupName: 'ls-prod'
+      package: '$(Build.ArtifactStagingDirectory)/Webjob/AzureFunctions.zip'
+      deploymentMethod: runFromPackage

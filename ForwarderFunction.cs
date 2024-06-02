@@ -22,7 +22,7 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
 
     [Function("ForwarderFunction")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, new[] { "get", "post" }, Route = "{*ignored}")] HttpRequestData req
+        [HttpTrigger(AuthorizationLevel.Anonymous, ["get", "post"], Route = "{*ignored}")] HttpRequestData req
         )
     {
         var requestUri = req.Url;
@@ -46,25 +46,17 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
             using var sr = new StreamReader(new MemoryStream(body));
             var payload = sr.ReadToEnd();
 
-            var authorised = false;
             var signingKey = configuration["XeroKeys:" + path];
-            {
-                //Xero requires everything be done in UTF-8
-                var signature = Convert.ToBase64String(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(payload)));
 
-                if (signature == signatureBytes)
-                {
-                    authorised = true; 
-                }
-            }
+            //Xero requires everything be done in UTF-8
+            byte[] signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
+            byte[] payloadBytes = Encoding.UTF8.GetBytes(payload);
 
-            if (!authorised)
+            var signature = Convert.ToBase64String(HMACSHA256.HashData(signingKeyBytes, payloadBytes));
+
+            if (signature != signatureBytes)
             {
                 return req.CreateResponse(HttpStatusCode.Unauthorized);
-            }
-            else
-            {
-
             }
         }
 

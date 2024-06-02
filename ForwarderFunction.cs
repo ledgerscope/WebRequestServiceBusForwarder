@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Net;
 using System.Security.Claims;
 using System.Text.Json;
@@ -6,6 +7,7 @@ using Azure.Messaging.ServiceBus;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
 namespace WebRequestServiceBusForwarder;
 
@@ -35,6 +37,35 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
             using var memoryStream = new MemoryStream();
             await req.Body.CopyToAsync(memoryStream);
             body = memoryStream.ToArray();
+        }
+
+        if (headers.TryGetValues("x-xero-signature", out var results))
+        {
+            var path = req.Url.LocalPath[1..];
+            var signatureBytes = results.First();
+            using var sr = new StreamReader(new MemoryStream(body));
+            var payload = sr.ReadToEnd();
+
+            var authorised = false;
+            var signingKey = configuration["XeroKeys:" + path];
+            {
+                //Xero requires everything be done in UTF-8
+                var signature = Convert.ToBase64String(HMACSHA256.HashData(Encoding.UTF8.GetBytes(signingKey), Encoding.UTF8.GetBytes(payload)));
+
+                if (signature == signatureBytes)
+                {
+                    authorised = true; 
+                }
+            }
+
+            if (!authorised)
+            {
+                return req.CreateResponse(HttpStatusCode.Unauthorized);
+            }
+            else
+            {
+
+            }
         }
 
         var outputMessage = new OutputRequest()

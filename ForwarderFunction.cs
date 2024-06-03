@@ -8,6 +8,7 @@ using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Configuration;
 using System.Text;
+using System.Collections.Concurrent;
 
 namespace WebRequestServiceBusForwarder;
 
@@ -46,10 +47,15 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
             using var sr = new StreamReader(new MemoryStream(body));
             var payload = sr.ReadToEnd();
 
-            var signingKey = configuration["XeroKeys:" + path];
+            if (!_signingKeys.TryGetValue(path, out var signingKeyBytes))
+            {
+                var signingKey = configuration["XeroKeys:" + path];
 
-            //Xero requires everything be done in UTF-8
-            byte[] signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
+                //Xero requires everything be done in UTF-8
+                signingKeyBytes = Encoding.UTF8.GetBytes(signingKey);
+                _signingKeys.TryAdd(path, signingKeyBytes);
+            }
+
             byte[] payloadBytes = Encoding.UTF8.GetBytes(payload);
 
             var signature = Convert.ToBase64String(HMACSHA256.HashData(signingKeyBytes, payloadBytes));
@@ -89,6 +95,8 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
         var response = req.CreateResponse(HttpStatusCode.OK);
         return response;
     }
+
+    private static readonly ConcurrentDictionary<string, byte[]> _signingKeys = new ConcurrentDictionary<string, byte[]>();
 }
 
 public class OutputRequest

@@ -18,7 +18,7 @@ steps:
     displayName: 'Dotnet Publish Functions'
     inputs:
       command: 'publish'
-      arguments: '--configuration $(BuildConfiguration) --output $(Agent.TempDirectory)/AzureFunctions -r linux-x64 --no-self-contained -p:FunctionsPublishReadyToRun=true -bl:$(Build.ArtifactStagingDirectory)/binlog/functions.binlog'
+      arguments: '--configuration $(BuildConfiguration) --output $(Agent.TempDirectory)/AzureFunctions -r linux-x64 --no-self-contained -p:PublishReadyToRun=true -bl:$(Build.ArtifactStagingDirectory)/binlog/functions.binlog'
       projects: 'WebRequestServiceBusForwarder.csproj'
       publishWebProjects: false # Otherwise it looks for and publishes all web projects too
       modifyOutputPath: false

@@ -35,9 +35,16 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
 
         if (req.Body != Stream.Null)
         {
-            using var memoryStream = new MemoryStream();
-            await req.Body.CopyToAsync(memoryStream);
-            body = memoryStream.ToArray();
+            if (req.Body is MemoryStream ms)
+            {
+                body = ms.ToArray();
+            }
+            else
+            {
+                using var memoryStream = new MemoryStream();
+                await req.Body.CopyToAsync(memoryStream);
+                body = memoryStream.ToArray();
+            }
         }
 
         if (headers.TryGetValues("x-xero-signature", out var results))

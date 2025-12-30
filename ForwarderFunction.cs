@@ -14,7 +14,7 @@ namespace WebRequestServiceBusForwarder;
 
 public class ForwarderFunction(IConfiguration configuration, ServiceBusSender sender)
 {
-    private static readonly JsonSerializerOptions jsonSerializerOptions = new JsonSerializerOptions
+    private static readonly JsonSerializerOptions jsonSerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = false,
@@ -103,14 +103,14 @@ public class ForwarderFunction(IConfiguration configuration, ServiceBusSender se
         return response;
     }
 
-    private static readonly ConcurrentDictionary<string, byte[]> _signingKeys = new ConcurrentDictionary<string, byte[]>();
+    private static readonly ConcurrentDictionary<string, byte[]> _signingKeys = new();
 }
 
 public class OutputRequest
 {
-    public Uri RequestUri { get; internal set; }
-    public IReadOnlyCollection<IHttpCookie> Cookies { get; internal set; }
-    public HttpHeadersCollection Headers { get; internal set; }
-    public IEnumerable<ClaimsIdentity> Identities { get; internal set; }
+    public Uri? RequestUri { get; init; }
+    public IReadOnlyCollection<IHttpCookie>? Cookies { get; internal set; }
+    public HttpHeadersCollection? Headers { get; internal set; }
+    public IEnumerable<ClaimsIdentity>? Identities { get; internal set; }
     public byte[]? Body { get; internal set; }
 }
